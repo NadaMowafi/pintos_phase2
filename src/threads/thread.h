@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -89,18 +90,44 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+    /*edited for exec*/
+    struct thread* parent;
+     struct thread* child;
+    bool child_loaded;
+    //struct semaphore sync_sema;
+    struct semaphore sync_sema;
+    struct semaphore wait_on_child_sema;
+    struct list list_of_children;
+    struct list_elem child_elem;
+    int child_status;
+    struct file *exec_file;
+
+    /*edited for exec*/
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    struct list fd_table;               /* list of all processes open file */
+    int fileNumber;                     /* file number */
+
+
+
 
 #ifdef USERPROG
-    /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
+  /* Owned by userprog/process.c. */
+      uint32_t *pagedir;                  /* Page directory. */
 #endif
 
     /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
+   unsigned magic;                     /* Detects stack overflow. */
   };
+/* srtuct for file descriptor */
+
+struct descriptor{
+  int fd;
+  struct file *file;
+  struct list_elem fd_elem; 
+  char *name;
+};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -137,5 +164,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+struct thread * get_thread(tid_t tid);
+
 
 #endif /* threads/thread.h */

@@ -23,6 +23,7 @@
 #include "threads/pte.h"
 #include "threads/thread.h"
 #ifdef USERPROG
+#include "threads/synch.h"
 #include "userprog/process.h"
 #include "userprog/exception.h"
 #include "userprog/gdt.h"
