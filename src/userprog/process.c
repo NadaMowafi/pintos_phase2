@@ -30,6 +30,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+    
   char *fn_copy;
   tid_t tid;
   
@@ -46,13 +47,17 @@ process_execute (const char *file_name)
   new_name = strtok_r (new_name, " ", &save_ptr);
  
   /* Create a new thread to execute FILE_NAME. */
+  printf("%s",new_name);
   tid = thread_create (new_name, PRI_DEFAULT, start_process, fn_copy);
   free(new_name);
-  sema_down(&thread_current()->sync_sema);
+  
+  
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+   sema_down(&thread_current()->sync_sema);
    if (!thread_current()->child_loaded) 
   {
+      
     return TID_ERROR;
   }
   return tid;
@@ -84,12 +89,16 @@ start_process (void *file_name_)
     sema_up(&current_child->parent->sync_sema);
     thread_exit ();
   }
-   if (success) 
+    else 
     { 
+        if(thread_current()->parent != NULL)
+        {
+            
         list_push_back(&current_child->parent->list_of_children,&current_child->elem);
         current_child ->parent->child_loaded=true;
         sema_up(&current_child->parent->sync_sema);
         sema_down(&current_child->sync_sema);
+        }
     }
 
   /* Start the user process by simulating a return from an
@@ -98,7 +107,9 @@ start_process (void *file_name_)
      arguments on the stack in the form of a `struct intr_frame',
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
+     
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
+  
   NOT_REACHED ();
 }
 
@@ -119,7 +130,7 @@ process_wait (tid_t child_tid UNUSED)
   struct list_elem *e;
   struct thread *child = NULL;
   int status = -1;
-
+  
   for (e = list_begin(&parent->list_of_children); e != list_end(&parent->list_of_children); e = list_next(e)) {
     struct thread *child_info = list_entry(e, struct thread, child_elem);
     if (child_info->tid == child_tid) {
@@ -146,6 +157,20 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  while (!list_empty(&cur->fd_table))      //while the list of opened files is not empty
+  {
+    struct descriptor* opened_file = list_entry(list_pop_back(&cur->fd_table), struct descriptor, fd_elem);   
+    file_close(opened_file->file);
+    palloc_free_page(opened_file);
+  }
+
+   while (!list_empty(&cur->list_of_children))
+  {
+    struct thread* child = list_entry(list_pop_back(&cur->list_of_children), struct thread, child_elem);
+    child->parent = NULL;               //indicating that the child process is no longer linked to the parent thread.
+    sema_up(&child->sync_sema);
+    //the child process signals to the parent thread that it has terminated, allowing the parent thread to resume its execution.
+  }
   //edited
   if(cur->exec_file!=NULL)
   {

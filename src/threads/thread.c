@@ -470,8 +470,10 @@ init_thread (struct thread *t, const char *name, int priority)
   /*edited for excec*/
    sema_init(&t->sync_sema,0);
    list_init(&t->list_of_children);
+   list_init(&t->fd_table);
    t->parent=NULL;
    t->child_loaded=false ;
+   t->exec_file=NULL;
   /*edited for excec*/
 
 

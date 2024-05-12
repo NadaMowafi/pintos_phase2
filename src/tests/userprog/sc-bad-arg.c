@@ -11,7 +11,9 @@
 void
 test_main (void) 
 {
+    printf("3adeena");
   asm volatile ("movl $0xbffffffc, %%esp; movl %0, (%%esp); int $0x30"
                 : : "i" (SYS_EXIT));
+                
   fail ("should have called exit(-1)");
 }

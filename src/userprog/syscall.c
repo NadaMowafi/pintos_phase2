@@ -29,14 +29,16 @@ uint32_t* stack_pointer = NULL;
 void
 syscall_init (void) 
 {
+    
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&lock);
-
+   
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+    
   stack_pointer = f->esp;
   check_pointer(stack_pointer);
   int syscall_number = (int) *stack_pointer;
@@ -66,7 +68,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
 
     case SYS_WAIT:
-     {
+     { 
+         
         check_args(1);
         pid_t pid = (pid_t)(*(stack_pointer + 1));
         f->eax = process_wait(pid);
@@ -139,7 +142,7 @@ void exit(int status)
 {
   struct thread* parent = thread_current()->parent;
   printf("%s: exit(%d)\n", thread_current()->name, status);
-  if(parent)     //if the current thread has a parent  (parent != NULL)
+  if(parent !=NULL)     //if the current thread has a parent  (parent != NULL)
   {
       parent->child_status = status;
   } 
