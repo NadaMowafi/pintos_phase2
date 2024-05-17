@@ -19,7 +19,7 @@
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
-
+static struct lock lock;
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -182,11 +182,11 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  /*edited for excec*/
-  t->parent=thread_current();
-  thread_current()->child=t;
-   /*edited for excec*/
-
+  struct child* c = malloc(sizeof(*c));
+  c->tid = tid;
+  list_push_back (&running_thread()->list_of_children, &c->elem);
+   
+  lock_init(&lock);
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -469,9 +469,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   /*edited for excec*/
    sema_init(&t->sync_sema,0);
+   sema_init(&t->wait_on_child_sema,0);
    list_init(&t->list_of_children);
    list_init(&t->fd_table);
-   t->parent=NULL;
+    t->parent = running_thread();
    t->child_loaded=false ;
    t->exec_file=NULL;
   /*edited for excec*/
@@ -577,6 +578,16 @@ schedule (void)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
 }
+//edited for userprog
+/*void acquire()
+{
+  lock_acquire(&lock);
+}
+
+void release_filesys_lock()
+{
+  lock_release(&lock);
+}*/
 
 /* Returns a tid to use for a new thread. */
 static tid_t

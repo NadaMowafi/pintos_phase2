@@ -62,8 +62,9 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXEC:
     {
        check_args(1);
-       char*name=(char*)*(stack_pointer+1);
-       f->eax= process_execute(name);
+       char*name=*(char**)(stack_pointer+1);
+       check_pointer(name);
+       f->eax= exec_func(name);
        break;
       }
 
@@ -348,6 +349,30 @@ static void remove_file(int fd)
              return;
      }
    }       
+}
+int exec_func(char *file_name)
+{
+	lock_acquire(&lock);
+	char * name = malloc (strlen(file_name)+1);
+	  strlcpy(name, file_name, strlen(file_name)+1);
+	  
+	  char * save_ptr;
+	  name = strtok_r(name," ",&save_ptr);
+
+	 struct file* f = filesys_open (name);
+
+	  if(f==NULL)
+	  {
+	  	lock_release(&lock);
+	  	return -1;
+	  }
+	  else
+	  {
+         
+	  	file_close(f);
+	  	lock_release(&lock);
+	  	return process_execute(file_name);
+	  }
 }
 
  

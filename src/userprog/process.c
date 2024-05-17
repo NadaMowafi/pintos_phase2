@@ -20,6 +20,7 @@
 #include "devices/shutdown.h"
 
 
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -30,7 +31,6 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-    
   char *fn_copy;
   tid_t tid;
   
@@ -41,24 +41,25 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   //edited
-  char *new_name=malloc( strlen(file_name) + 1);
+  char *new_name;
+  new_name=malloc( strlen(file_name) + 1);
   strlcpy(new_name, file_name, strlen(file_name) + 1);
   char  *save_ptr;
   new_name = strtok_r (new_name, " ", &save_ptr);
  
   /* Create a new thread to execute FILE_NAME. */
-  printf("%s",new_name);
+  
   tid = thread_create (new_name, PRI_DEFAULT, start_process, fn_copy);
   free(new_name);
   
   
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-   sema_down(&thread_current()->sync_sema);
+   sema_down(&thread_current()->wait_on_child_sema);
    if (!thread_current()->child_loaded) 
   {
       
-    return TID_ERROR;
+    return -1;
   }
   return tid;
 }
@@ -86,19 +87,18 @@ start_process (void *file_name_)
 
   if (!success) 
   {
-    sema_up(&current_child->parent->sync_sema);
+       current_child ->parent->child_loaded=false;
+    sema_up(&current_child->parent->wait_on_child_sema);
     thread_exit ();
   }
     else 
     { 
-        if(thread_current()->parent != NULL)
-        {
             
-        list_push_back(&current_child->parent->list_of_children,&current_child->elem);
+        //list_push_back(&current_child->parent->list_of_children,&current_child->elem);
         current_child ->parent->child_loaded=true;
-        sema_up(&current_child->parent->sync_sema);
-        sema_down(&current_child->sync_sema);
-        }
+        sema_up(&current_child->parent->wait_on_child_sema);
+        //sema_down(&current_child->sync_sema);
+        
     }
 
   /* Start the user process by simulating a return from an
@@ -142,7 +142,7 @@ process_wait (tid_t child_tid UNUSED)
   if (child == NULL) {
     return -1;
   }
-  sema_up(&child->sync_sema);
+  //sema_up(&child->sync_sema);
   list_remove(&child->child_elem);
   sema_down(&parent->wait_on_child_sema);
   status = parent->status;
@@ -283,14 +283,16 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+    
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
   off_t file_ofs;
   bool success = false;
   int i;
-
+  
   /* Allocate and activate page directory. */
+  
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
@@ -299,18 +301,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char *new_name=malloc( strlen(file_name) + 1);
   strlcpy(new_name, file_name, strlen(file_name) + 1);
   char  *save_ptr;
-  new_name = strtok_r (new_name, " ", &save_ptr);
+  new_name = strtok_r (new_name," ", &save_ptr);
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (new_name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
-    /*edited*/
-     thread_current()->exec_file = file;
-     file_deny_write(file);
+    
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -393,11 +393,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-
+/*edited*/
+    
+     thread_current()->exec_file = file;
+     
+     file_deny_write(file);
  done:
-
+ 
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  
   return success;
 }
 
@@ -524,47 +528,54 @@ setup_stack (void **esp,const char*file_name)
       if (success)
    {
         *esp = PHYS_BASE;
-        /*edited*/   
-    char *argv[512];
+       
+    }
+      else
+        palloc_free_page (kpage);
+    }
+     /*edited*/   
     
     char *new_name=malloc( strlen(file_name) + 1);
    strlcpy(new_name, file_name, strlen(file_name) + 1);
    char *token, *save_ptr;
    int argc=0;
-  
+  int i=0;
+  int total_bits=0;
    for (token = strtok_r (new_name, " ", &save_ptr); token != NULL;
          token = strtok_r (NULL, " ", &save_ptr))
          {
-             argv[argc]=token;
              argc++;
          }
-    free(new_name);
-    char*adresses[argc];
-     int i=argc-1;
-     int total_bytes=0;
-    for(i;i>=0;i--)
-    {
-        (*esp)-=(strlen(argv[i])+1);
-        memcpy(*esp , & argv[i],  strlen(argv[i])+1) ;
-        adresses[i]=(char*)*esp;
-        total_bytes+=(strlen(argv[i])+1);   
-    }
+         int *argv = calloc(argc,sizeof(int));
+         i=0;
+         for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
+         token = strtok_r (NULL, " ", &save_ptr))
+         {
+             *esp-=(strlen(token)+1);
+              total_bits+=(strlen(token)+1);   
+              memcpy(*esp,token,strlen(token) + 1); //storing arguments
+             argv[i]=*esp;
+             i++;
+         }
     
-        int word_align=total_bytes%4;
+    
+    
+        int word_align=total_bits%4;
        
         for(i=0;i<word_align;i++)
         {
-             (*esp)--;
-             memcpy(*esp ,0,1) ;
+             (*esp)-=sizeof(char);
+              char align = 0;
+          memcpy(*esp,&align,sizeof(char));   
            
         }
          int zero=0;
          (*esp)=(*esp)-sizeof(int);
-          memcpy(*esp ,&zero,sizeof(int)) ;
+          memcpy(*esp ,&zero,sizeof(int)) ; //adding null 
       for(i=argc-1;i>=0;i--)
     {
-        (*esp)-=4;
-         memcpy(*esp ,&adresses[i],sizeof(char*) );
+        (*esp)-=sizeof(char*);
+         memcpy(*esp ,&argv[i],sizeof(char*) );
               
     }
     int arg_address=*esp;
@@ -578,13 +589,12 @@ setup_stack (void **esp,const char*file_name)
       *esp -= sizeof(void *);
       int fake_return=0;
        memcpy(*esp , &fake_return ,  sizeof(void *)) ; 
+        free(argv);
+        free(new_name);
+        
 
        // if(debug)hex_dump((uintptr_t)*esp,*esp, sizeof(char)*8, true);  
     
-    }
-      else
-        palloc_free_page (kpage);
-    }
   return success;
 }
 

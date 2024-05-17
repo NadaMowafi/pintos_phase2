@@ -1,14 +1,7 @@
 {
   "ExpandedNodes": [
-    "",
-    "\\src",
-    "\\src\\lib\\kernel",
-    "\\src\\lib\\user",
-    "\\src\\tests\\userprog",
-    "\\src\\tests\\userprog\\no-vm",
-    "\\src\\threads",
-    "\\src\\userprog"
+    ""
   ],
-  "SelectedNode": "\\src\\threads\\Make.vars",
+  "SelectedNode": "\\C:\\Users\\HP\\Source\\Repos\\pintos_phase2",
   "PreviewInSolutionExplorer": false
 }
