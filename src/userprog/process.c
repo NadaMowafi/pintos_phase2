@@ -142,7 +142,7 @@ process_wait (tid_t child_tid UNUSED)
   if (child == NULL) {
     return -1;
   }
-  //sema_up(&child->sync_sema);
+  sema_up(&child->sync_sema);
   list_remove(&child->child_elem);
   sema_down(&parent->wait_on_child_sema);
   status = parent->status;
