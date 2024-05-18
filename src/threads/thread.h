@@ -84,6 +84,8 @@ typedef int tid_t;
      struct child {
       int tid;
       struct list_elem elem;
+      int exit_error;
+      bool used;
      };
 struct thread
   {
@@ -94,6 +96,9 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+
+    int exit_error;
+    int waitingOnChild;
     /*edited for exec*/
     struct thread* parent;
      struct thread* child;

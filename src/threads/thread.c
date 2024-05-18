@@ -184,6 +184,7 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
   struct child* c = malloc(sizeof(*c));
   c->tid = tid;
+  c->exit_error = t->exit_error;
   list_push_back (&running_thread()->list_of_children, &c->elem);
    
   lock_init(&lock);

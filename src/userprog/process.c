@@ -128,26 +128,32 @@ process_wait (tid_t child_tid UNUSED)
   //-------------------edited------------------------------------------------------------
   struct thread *parent = thread_current();
   struct list_elem *e;
-  struct thread *child = NULL;
-  int status = -1;
+  struct child *ch = NULL;
+  // int status = -1;
+  struct list_elem *e1;
   
   for (e = list_begin(&parent->list_of_children); e != list_end(&parent->list_of_children); e = list_next(e)) {
-    struct thread *child_info = list_entry(e, struct thread, child_elem);
+    struct child *child_info = list_entry(e, struct child, elem);
     if (child_info->tid == child_tid) {
-      child = child_info->child;
-      break;
+      ch = child_info;
+      e1 = e;
     }
   }
 
-  if (child == NULL) {
+  if (!ch || !e1) {
     return -1;
   }
-  sema_up(&child->sync_sema);
-  list_remove(&child->child_elem);
-  sema_down(&parent->wait_on_child_sema);
-  status = parent->status;
+  // sema_up(&child->sync_sema);
+  parent->waitingOnChild = ch->tid;
 
-  return status;
+  if (!ch->used){
+    sema_down(&parent->wait_on_child_sema);
+  }
+
+  int temp = ch->exit_error;
+  list_remove(e1);
+
+  return temp;
   //----------------------------------------------------------------------------------------------
 }
 
