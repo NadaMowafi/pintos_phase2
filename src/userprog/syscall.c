@@ -141,7 +141,31 @@ syscall_handler (struct intr_frame *f UNUSED)
 
 void exit(int status)
 {
-  struct thread* parent = thread_current()->parent;
+
+     struct list_elem *e;
+      //loop on the list of children 
+      for (e = list_begin (&thread_current()->parent->list_of_children); e != list_end (&thread_current()->parent->list_of_children);
+           e = list_next (e))
+        {
+          //for each loop change the element to struct child
+          struct child *f = list_entry (e, struct child, elem);
+          if(f->tid == thread_current()->tid)   
+          {
+          	f->used = true;
+          	f->exit_error = status;
+          }
+        }
+
+
+	thread_current()->exit_error = status;
+
+	if(thread_current()->parent->waitingOnChild == thread_current()->tid)
+		sema_up(&thread_current()->parent->wait_on_child_sema);   //wakeup the parent
+
+	thread_exit();
+
+
+ /* struct thread* parent = thread_current()->parent;
   printf("%s: exit(%d)\n", thread_current()->name, status);
   if(parent !=NULL)     //if the current thread has a parent  (parent != NULL)
   {
@@ -149,7 +173,7 @@ void exit(int status)
   } 
   //the child status of the parent thread (if it exists) is updated with the exit status of the current thread. 
   //This facilitates communication between parent and child threads 
-  thread_exit();     //it calls process_exit function
+  thread_exit();     //it calls process_exit function*/
 }
 
 

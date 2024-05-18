@@ -163,14 +163,37 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
-  while (!list_empty(&cur->fd_table))      //while the list of opened files is not empty
+
+      if(cur->exit_error==-100)
+      exit(-1);
+
+    int exit_code = cur->exit_error;
+    printf("%s: exit(%d)\n",cur->name,exit_code);
+
+    while (!list_empty(&cur->fd_table))      //while the list of opened files is not empty
   {
     struct descriptor* opened_file = list_entry(list_pop_back(&cur->fd_table), struct descriptor, fd_elem);   
     file_close(opened_file->file);
     palloc_free_page(opened_file);
   }
 
-   while (!list_empty(&cur->list_of_children))
+  if(cur->exec_file!=NULL)
+  {
+    file_allow_write(cur->exec_file);
+    file_close(cur->exec_file);
+  }
+
+  }
+
+
+  /*while (!list_empty(&cur->fd_table))      //while the list of opened files is not empty
+  {
+    struct descriptor* opened_file = list_entry(list_pop_back(&cur->fd_table), struct descriptor, fd_elem);   
+    file_close(opened_file->file);
+    palloc_free_page(opened_file);
+  }*/
+
+   /*while (!list_empty(&cur->list_of_children))
   {
     struct thread* child = list_entry(list_pop_back(&cur->list_of_children), struct thread, child_elem);
     child->parent = NULL;               //indicating that the child process is no longer linked to the parent thread.
@@ -193,7 +216,7 @@ process_exit (void)
   {
     sema_up(&cur->parent->wait_on_child_sema);
 
-  }
+  }*/
 
 }
 
